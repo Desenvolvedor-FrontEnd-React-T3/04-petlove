@@ -1,18 +1,62 @@
-import { useForm } from "react-hook-form";
+import { useState } from "react";
+
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import "./adoption-form.css";
 import schema from "../../libs/validations";
 
+const apiURL = "https://jsonplaceholder.typicode.com/posts";
+
+const initialValues = {
+  petId: "",
+  name: "",
+};
+
 export default function AdoptionForm({ pets }) {
+  const [errorMessage, setErrorMessage] = useState("");
+
   const {
     register,
     handleSubmit,
-    formState: { errors },
-  } = useForm({ resolver: zodResolver(schema) });
+    control,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(schema),
+    defaultValues: initialValues,
+  });
 
-  function submitForm(data) {
-    console.log(data);
+  const petId = useWatch({ control, name: "petId" });
+
+  const chosenPet = pets.find((pet) => {
+    return pet.id == petId;
+  });
+
+  async function submitForm(data) {
+    setErrorMessage("");
+
+    try {
+      const response = await fetch(apiURL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok == false) {
+        setErrorMessage("Não foi possível enviar os dados. Tente novamente!");
+        return;
+      }
+
+      const saved = await response.json();
+      console.log(saved);
+    } catch (error) {
+      console.log(error);
+      setErrorMessage("Sem conexão com a API");
+    }
+
+    //console.log(data);
   }
 
   return (
@@ -21,7 +65,9 @@ export default function AdoptionForm({ pets }) {
       onSubmit={handleSubmit(submitForm)}
       noValidate
     >
-      <h2 className="form-title">Quero adotar a Nina</h2>
+      <h2 className="form-title">
+        Quero adotar {chosenPet && `${chosenPet.article} ${chosenPet.name}`}
+      </h2>
 
       <div className="field">
         <label htmlFor="petId">Animal</label>
@@ -105,7 +151,11 @@ export default function AdoptionForm({ pets }) {
         {errors.terms && <p className="error">{errors.terms.message}</p>}
       </div>
 
-      <button type="submit">Enviar interesse</button>
+      {errorMessage && <p className="error">{errorMessage}</p>}
+
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? "Enviando..." : "Enviar interesse"}
+      </button>
     </form>
   );
 }
